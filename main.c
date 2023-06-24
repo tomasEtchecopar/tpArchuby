@@ -5,7 +5,7 @@
 #define cambioUSD 244
 
 
-//dos structs de usuarios. una para contraseñas y otro para las cuentas. estan relacionaods mediante arreglos paralelos de structs.
+//dos structs de usuarios. una para contraseÃ±as y otro para las cuentas. estan relacionaods mediante arreglos paralelos de structs.
 typedef struct{
     char nombreUsuario[30];
     char password[30];
@@ -14,6 +14,8 @@ typedef struct{
 
 typedef struct{
     char nombreYApellido[50];
+    int CBU[15];
+    char alias[15];
     float saldo;
     float saldoUSD;
 
@@ -35,13 +37,15 @@ usuarioContra PassNuevo();
 cuentaUsuario cuentaNueva();
 
 //iniciar sesion//
-void iniciarSesion();
+cuentaUsuario iniciarSesion();
+int ingresarUsuarioContra();
 /////////////////
 
 ///MAIN///
 int main()
 {
     menus();
+
     return 0;
 }
 
@@ -72,64 +76,31 @@ void flecha(int posicTexto, int seleccion){
     }
 }
 
-void menus(){
-    system("cls");
-    int user=elegirUsuaroAdmin();
-    switch(user){
-    case 1:
-        menuUsuario();
-        break;
-    case 2:
-        //menu admin
-        break;
-    case 3:
-        system("cls");
-        break;
-
-    }
-}
-
-void menuUsuario(){
-    int a=elegirCuenta();
-    switch(a){
-case 1:
-    //codigo para iniciar sesion
-    break;
-case 2:
-    system("cls");
-    crearCuenta();
-    break;
-    }
-}
-
-
-
-int elegirCuenta(){
-    int seleccion=1, tecla=0;
-    while(tecla!=13){ //TECLA DISTINTA DE ENTER
-    system("cls");
-    printf("------------BIENVENIDO-------------\n\n");
-    flecha(1, seleccion);
-    printf("\tINICIAR SESION\t\t");
-    flecha(2, seleccion);
-    printf("CREAR CUENTA");
-    tecla=getch();
+int posicionDelUsuario(tecla, seleccion){//modularizacion para optimizar la utilizacion de los botones. los menus deben tener tres columnas de botones.
+    // 75 IZQUIERDA
+    // 77 DERECHA
+    // 72 ARRIBA
+    // 80 ABAJO
     switch(tecla){
     case 77:
-        if(seleccion<2){
             seleccion++;
-        }
         break;
     case 75:
-        if(seleccion>1){
             seleccion--;
-        }
+        break;
+    case 72:
+        seleccion-=3;
+        break;
+    case 80:
+        seleccion+=3;
         break;
     }
-    }
     return seleccion;
+
+
 }
 
+///FUNCION VISUAL DEL MENU; RETORNA BOTON PRESIONADO
 int elegirUsuaroAdmin(){
     int seleccion=1, tecla=0;
 
@@ -146,24 +117,100 @@ int elegirUsuaroAdmin(){
     printf("\n");
 
     tecla = getch();
-    // 77 DERECHA
-    // 75 IZQUIERDA
-    switch(tecla){
-    case 77:
-        if(seleccion<3){
-            seleccion++;
+
+    if(tecla==13){//retorno seleccion antes de que cambie a 13
+        return seleccion;
+    }
+
+
+    seleccion=posicionDelUsuario(tecla, seleccion);
+
+    if(seleccion>3){ //no se me ocurre otra manera de no exceder la cant de botones xd
+        seleccion=3;
+    }else{
+        if(seleccion<1){
+            seleccion=1;
         }
-        break;
-    case 75:
-        if(seleccion>1){
-            seleccion--;
-        }
-        break;
     }
 
 }
-    return seleccion;
+
 }
+
+void menus(){
+    int user=0;
+    while(user!=3){
+
+    system("cls");
+    user=elegirUsuaroAdmin();
+
+    switch(user){
+    case 1:
+        menuUsuario();
+        break;
+    case 2:
+        //menu admin
+        break;
+    case 3:
+        system("cls");
+        break;
+
+    }
+    }
+}
+
+void menuUsuario()  {
+    int a=elegirCuenta();
+    switch(a){
+case 1:
+    iniciarSesion();
+    break;
+case 2:
+    system("cls");
+    crearCuenta();
+    break;
+case 3:
+    return 0;//para que la ejecucion de la funcion termine y se haga el break de la linea 150, entonces se repite el bucle de 142 pq user==1 al entrar a este menu.
+    break;
+    }
+}
+
+
+
+///FUNCION VISUAL DEL MENU; RETORNA BOTON PRESIONADO
+int elegirCuenta(){
+    int seleccion=1, tecla=0;
+    while(tecla!=13){ //TECLA DISTINTA DE ENTER
+    system("cls");
+    printf("------------BIENVENIDO-------------\n\n");
+    flecha(1, seleccion);
+    printf("INICIAR SESION\t");
+    flecha(2, seleccion);
+    printf("CREAR CUENTA\t");
+    flecha(3, seleccion);
+    printf("VOLVER");
+
+    tecla=getch();
+
+    if(tecla==13){
+        return seleccion;
+    }
+
+    seleccion=posicionDelUsuario(tecla, seleccion);
+
+    if(seleccion>3){
+        seleccion=3;
+    }
+    else{
+        if(seleccion<1){
+            seleccion=1;
+        }
+    }
+
+    }
+}
+
+
 
 ///CREADO DE CUENTAS///
 
@@ -175,6 +222,7 @@ void crearCuenta(){
     if(user!=NULL && cuentas!=NULL){
         int duplicado=1;
         while(duplicado==1){
+            printf("------------CREAR CUENTA-------------\n");
             a=PassNuevo();
             duplicado=buscarIgual(a);
             if(duplicado==1){
@@ -232,24 +280,68 @@ cuentaUsuario cuentaNueva(){
 ///INICIAR SESION
 
 
-void iniciarSesion(){
-    FILE *user=fopen("passwords.dat", "rb");
+cuentaUsuario iniciarSesion(){//retorno usuario
     FILE *cuentas=fopen("cuentas.dat", "rb");
     char nombreNuevo[30], pass[30];
     int numUsuario=cantDePasswords();
     usuarioContra passCheck;
     cuentaUsuario datos;
 
+    if(cuentas!=NULL){
+
+    numUsuario=ingresarUsuarioContra();
+    fseek(cuentas, sizeof(cuentaUsuario)*numUsuario-1, SEEK_SET);
+    fread(&datos, sizeof(cuentaUsuario), 1, cuentas);
+    fclose(cuentas);
+
+    }
+}
+
+int ingresarUsuarioContra(){
+    FILE *user=fopen("passwords.dat", "rb");
+    FILE *cuentas=fopen("cuentas.dat", "rb");
+    char nombreNuevo[30], pass[30];
+    int numUsuario=cantDePasswords();
+    int flagNombre=0, flagPassword=0;
+    usuarioContra passCheck;
+    cuentaUsuario datos;
+
     if(user!=NULL && cuentas!=NULL){
+
+        while(flagNombre==0 || flagPassword==0){
+        system("cls");
+        printf("------------INICIAR SESION-------------\n");
         fflush(stdin);
         printf("Nombre de usuario: ");
         scanf("%s", nombreNuevo);
         fflush(stdin);
         printf("Password: ");
         scanf("%s", pass);
-        while(fread(&passCheck, sizeof(usuarioContra), 1, user) == 1 && strcmp(nombreNuevo, passCheck.nombreUsuario)!=0){ //
+
+        while(fread(&passCheck, sizeof(usuarioContra), 1, user) == 1 && strcmp(nombreNuevo, passCheck.nombreUsuario)!=0){
             numUsuario--;
         }
+        if(strcmp(nombreNuevo, passCheck.nombreUsuario)!=0){
+            printf("\nNombre de usuario incorrecto.\n");
+            printf("Ingrese cualquier tecla para reintentar.\n");
+            getch();
+        }
+        else{
+        flagNombre=1;
+            if(strcmp(pass, passCheck.password)!=0){
+                printf("\nContrasenia incorrecta.\n");
+                printf("Ingrese cualquier tecla para reintentar.\n");
+                getch();
+            }
+            else{
+                flagPassword=1;
+            }
+        }
 
+        }
+        fclose(user);
+        fclose(cuentas);
     }
+
+    return numUsuario;
 }

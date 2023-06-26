@@ -8,9 +8,10 @@
 //dos structs de usuarios. una para contraseñas y otro para las cuentas. estan relacionaods mediante arreglos paralelos de structs.
 typedef struct{
     char nombreUsuario[30];
+    int CBU[15];
     char password[30];
 
-}usuarioContra;
+}nombrePassword;
 
 typedef struct{
     char nombreYApellido[50];
@@ -19,10 +20,14 @@ typedef struct{
     float saldo;
     float saldoUSD;
 
-}cuentaUsuario;
+}datosUsuarios;
 
 ///PROTOTIPADO///
 
+//funcion auxiliares
+void ingresarDato(char a[], char b[]);
+int buscarUsuario(FILE *user, char a[]);
+void arrayAToB(int a[], int b[], int validos);
 
 //funciones de menus//
 void menus();
@@ -32,13 +37,14 @@ int elegirUsuaroAdmin();
 
 //creado de cuentas//
 void crearCuenta();
-int buscarIgual(usuarioContra a);
-usuarioContra PassNuevo();
-cuentaUsuario cuentaNueva();
+int buscarIgual(nombrePassword a);
+nombrePassword PassNuevo();
+datosUsuarios cuentaNueva();
 
 //iniciar sesion//
-cuentaUsuario iniciarSesion();
-int ingresarUsuarioContra();
+void iniciarSesion();
+datosUsuarios datosPorNumUsuario(FILE *cuentas, int numUsuario);
+int ingresarNombrePassword();
 /////////////////
 
 ///MAIN///
@@ -58,12 +64,29 @@ int cantDePasswords(){
         fseek(arch, 0, SEEK_END);
         int tamanioArchi=ftell(arch);
         if(tamanioArchi!=-1){
-            i = tamanioArchi/sizeof(usuarioContra);
+            i = tamanioArchi/sizeof(nombrePassword);
         }
         fclose(arch);
     }
     return i;
 }
+
+///FUNCIONES AUX///
+//usadas a lo largo de todas las funciones
+
+void ingresarDato(char a[], char b[]){//1er parametro texto, 2do input del usuario
+    printf("%s", a);
+    fflush(stdin);
+    gets(b);
+}
+
+void arrayAToB(int a[], int b[], int validos){
+    for(int i=0;i<validos;i++){
+        b[i]=a[i];
+    }
+}
+
+
 ///FUNCIONES MENU///
 
 //FUNCION PARA LA FLECHA. 1er parametro es la posicion en la que esta el texto, 2do es la posicion que elige el usuario mediante las flechas
@@ -160,7 +183,9 @@ void menus(){
 }
 
 void menuUsuario()  {
-    int a=elegirCuenta();
+    int a=0;
+    while(a!=3){
+    a=elegirCuenta();
     switch(a){
 case 1:
     iniciarSesion();
@@ -172,6 +197,7 @@ case 2:
 case 3:
     return 0;//para que la ejecucion de la funcion termine y se haga el break de la linea 150, entonces se repite el bucle de 142 pq user==1 al entrar a este menu.
     break;
+    }
     }
 }
 
@@ -212,13 +238,14 @@ int elegirCuenta(){
 
 
 
+
 ///CREADO DE CUENTAS///
 
 void crearCuenta(){
     FILE *user=fopen("passwords.dat", "ab");
     FILE *cuentas=fopen("cuentas.dat", "ab");
-    usuarioContra a;
-    cuentaUsuario acc;
+    nombrePassword a;
+    datosUsuarios acc;
     if(user!=NULL && cuentas!=NULL){
         int duplicado=1;
         while(duplicado==1){
@@ -230,21 +257,21 @@ void crearCuenta(){
                 printf("Nombre de usuario en uso. Intente de nuevo");
             }
         }
-        acc=cuentaNueva();
-        fwrite(&a, sizeof(usuarioContra), 1, user);
-        fwrite(&acc, sizeof(cuentaUsuario), 1, cuentas);
+        acc=cuentaNueva(a.CBU);
+        fwrite(&a, sizeof(nombrePassword), 1, user);
+        fwrite(&acc, sizeof(datosUsuarios), 1, cuentas);
         fclose(user);
         fclose(cuentas);
 
     }
 }
 
-int buscarIgual(usuarioContra a){ //funcion aux para buscar si un nombre de usuario ya esta en uso
+int buscarIgual(nombrePassword a){ //funcion aux para buscar si un nombre de usuario ya esta en uso
     FILE *arch=fopen("passwords.dat", "rb");
-    usuarioContra b;
+    nombrePassword b;
     int flag=0;
     if(arch!=NULL){
-        while(fread(&b, sizeof(usuarioContra), 1, arch)){
+        while(fread(&b, sizeof(nombrePassword), 1, arch)){
             if(strcmp(a.nombreUsuario, b.nombreUsuario)==0){
                 flag=1;
             }
@@ -254,22 +281,21 @@ int buscarIgual(usuarioContra a){ //funcion aux para buscar si un nombre de usua
     return flag;
 }
 
-usuarioContra PassNuevo(){
-    usuarioContra a;
-    fflush(stdin);
-    printf("Ingrese nombre de usuario (30 caracteres max.): ");
-    scanf("%29s", a.nombreUsuario);
-    fflush(stdin);
-    printf("Ingrese password (30 caracteres max.): ");
-    scanf("%29s", a.password);
+nombrePassword PassNuevo(){
+    nombrePassword a;
+    ingresarDato("Ingrese nombre de usuario (30 caracteres max.): ", a.nombreUsuario);
+    printf("CBU (15 max.): ");
+    scanf("%d", a.CBU);
+    ingresarDato("Ingrese password (30 caracteres max.): ", a.password);
     return a;
 }
 
-cuentaUsuario cuentaNueva(){
-    cuentaUsuario a;
+datosUsuarios cuentaNueva(int cbum[]){
+    datosUsuarios a;
     fflush(stdin);
     printf("Ingrese nombre y apellido: ");
     gets(a.nombreYApellido);
+    arrayAToB(a.CBU, cbum, 15);
     printf("Ingrese saldo en pesos: ");
     scanf("%f", &a.saldo);
     a.saldoUSD = a.saldo*cambioUSD;
@@ -279,69 +305,92 @@ cuentaUsuario cuentaNueva(){
 
 ///INICIAR SESION
 
-
-cuentaUsuario iniciarSesion(){//retorno usuario
+void iniciarSesion(){
     FILE *cuentas=fopen("cuentas.dat", "rb");
-    char nombreNuevo[30], pass[30];
-    int numUsuario=cantDePasswords();
-    usuarioContra passCheck;
-    cuentaUsuario datos;
-
-    if(cuentas!=NULL){
-
-    numUsuario=ingresarUsuarioContra();
-    fseek(cuentas, sizeof(cuentaUsuario)*numUsuario-1, SEEK_SET);
-    fread(&datos, sizeof(cuentaUsuario), 1, cuentas);
-    fclose(cuentas);
-
+    datosUsuarios userData;
+    int numUsuario;
+    if(cuentas==NULL){
+        return;
     }
+
+    numUsuario=ingresarNombrePassword();
+
+    if(numUsuario==-1){
+        return;
+    }
+    userData=datosPorNumUsuario(cuentas, numUsuario);
+
+    //hacer menu de usuario(ingresar dinero, hacer transferencia, etc.)
 }
 
-int ingresarUsuarioContra(){
+datosUsuarios datosPorNumUsuario(FILE *cuentas, int numUsuario){
+    datosUsuarios datos;
+
+    fseek(cuentas, sizeof(datosUsuarios)*numUsuario, SEEK_SET);
+    fread(&datos, sizeof(datosUsuarios), 1, cuentas);
+    fclose(cuentas);
+
+    return datos;
+}
+
+int ingresarNombrePassword(){
     FILE *user=fopen("passwords.dat", "rb");
-    FILE *cuentas=fopen("cuentas.dat", "rb");
-    char nombreNuevo[30], pass[30];
-    int numUsuario=cantDePasswords();
-    int flagNombre=0, flagPassword=0;
-    usuarioContra passCheck;
-    cuentaUsuario datos;
+    char nombreNuevo[30], passNuevo[30];
+    int flagPassword=0, numUsuario=-1, input=0; //input es para volver hacia atras en el menu
+    nombrePassword passCheck;
+    datosUsuarios datos;
 
-    if(user!=NULL && cuentas!=NULL){
+    if(user==NULL){
+        fclose(user);
 
-        while(flagNombre==0 || flagPassword==0){
+        return 0;
+    }
+     while(flagPassword==0){
         system("cls");
         printf("------------INICIAR SESION-------------\n");
         fflush(stdin);
-        printf("Nombre de usuario: ");
-        scanf("%s", nombreNuevo);
-        fflush(stdin);
-        printf("Password: ");
-        scanf("%s", pass);
+        ingresarDato("Nombre de Usuario: ", nombreNuevo);
+        ingresarDato("Password: ", passNuevo);
 
-        while(fread(&passCheck, sizeof(usuarioContra), 1, user) == 1 && strcmp(nombreNuevo, passCheck.nombreUsuario)!=0){
-            numUsuario--;
-        }
-        if(strcmp(nombreNuevo, passCheck.nombreUsuario)!=0){
+        numUsuario=buscarUsuario(user, nombreNuevo);
+
+        if(numUsuario==-1){
             printf("\nNombre de usuario incorrecto.\n");
-            printf("Ingrese cualquier tecla para reintentar.\n");
-            getch();
+            printf("Ingrese cualquier tecla para reintentar. (ESC para salir)\n");
+            input=getch();
         }
         else{
-        flagNombre=1;
-            if(strcmp(pass, passCheck.password)!=0){
+            fseek(user, sizeof(nombrePassword)*numUsuario, SEEK_SET);
+            fread(&passCheck, sizeof(nombrePassword), 1, user);
+            if(strcmp(passNuevo, passCheck.password)!=0){
                 printf("\nContrasenia incorrecta.\n");
-                printf("Ingrese cualquier tecla para reintentar.\n");
-                getch();
+                printf("Ingrese cualquier tecla para reintentar. (ESC para salir)\n");
+                input=getch();
+
             }
             else{
                 flagPassword=1;
             }
         }
-
+        if(input==27){
+            return -1;
         }
-        fclose(user);
-        fclose(cuentas);
     }
+        fclose(user);
 
     return numUsuario;
 }
+
+int buscarUsuario(FILE *user, char a[]){
+    int numUsuario, limite=cantDePasswords();
+    nombrePassword passCheck;
+    for(numUsuario=0;numUsuario<limite;numUsuario++){
+        if(fread(&passCheck, sizeof(nombrePassword), 1, user)==1){
+            if(strcmp(a, passCheck.nombreUsuario)==0){
+                return numUsuario;
+            }
+        }
+    }
+    return -1;
+}
+
